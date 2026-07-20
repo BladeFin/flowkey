@@ -1,0 +1,19 @@
+{
+  "hotkeys": {
+    "N": "notepad",
+    "C": "calculator",
+    "S": "chrome",
+    "V": "vscode"
+  },
+  "launchDetached": {
+    "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+    "vscode": "C:\\Users\\blade\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
+  },
+  "miniApps": {
+    "calculator": {
+      "path": ".\\flowkey-calc\\build\\bin\\flowkey-calc.exe",
+      "windowTitle": "flowkey-calc",
+      "alwaysOnTop": true
+    }
+  }
+}
