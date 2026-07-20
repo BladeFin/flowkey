@@ -11,27 +11,17 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-var hotkeyActions = map[uint32]string{
-	0x4E: "notepad",    // N
-	0x43: "calculator", // C
-	0x53: "chrome",     // S
-	0x56: "vscode",     // V
-}
-
-var launchDetachedActions = map[string]string{
-	"chrome": `C:\Program Files\Google\Chrome\Application\chrome.exe`,
-	"vscode": `C:\Users\blade\AppData\Local\Programs\Microsoft VS Code\Code.exe`,
-}
-
 type miniAppInfo struct {
-	path        string
-	windowTitle string
-	alwaysOnTop bool
+	Path        string
+	WindowTitle string
+	AlwaysOnTop bool
 }
 
-var miniActions = map[string]miniAppInfo{
-	"calculator": {path: `.\flowkey-calc\build\bin\flowkey-calc.exe`, windowTitle: "flowkey-calc", alwaysOnTop: true},
-}
+var (
+	hotkeyActions         map[uint32]string
+	launchDetachedActions map[string]string
+	miniActions           map[string]miniAppInfo
+)
 
 var (
 	user32                  = windows.NewLazySystemDLL("user32.dll")
@@ -101,6 +91,15 @@ func initJobObject() error {
 
 func main() {
 	runtime.LockOSThread() //prevents thread switching that would break the hotkey registration
+
+	cfg, err := LoadConfig("config.json")
+	if err != nil {
+		log.Fatalf("Failed to load config: %v", err)
+	}
+	hotkeyActions = cfg.HotkeyActions
+	launchDetachedActions = cfg.LaunchDetachedActions
+	miniActions = cfg.MiniActions
+
 	if err := initJobObject(); err != nil {
 		panic(err) //crash because we don't want a bunch of mini-apps hanging around
 	}
@@ -147,6 +146,7 @@ func startListening() {
 	time.AfterFunc(2*time.Second, func() { //time.AfterFunc is non-blocking by construction
 		if listenGen == gen {
 			listening = false
+			listenGen++
 			fmt.Println("-> timed out, no spec key pressed")
 		}
 	})
@@ -160,11 +160,13 @@ func keyboardHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 
 			if action, ok := hotkeyActions[kb.VkCode]; ok {
 				listening = false
+				listenGen++
 				fmt.Printf("-> matched spec key: %s\n", action)
 				dispatch(action)
 				return 1
 			} else {
 				listening = false
+				listenGen++
 				fmt.Println("-> unmatched key pressed: cancelled operation")
 				ret, _, _ := procCallNextHookEx.Call(0, uintptr(nCode), wParam, lParam)
 				return ret
@@ -191,10 +193,10 @@ func dispatch(action string) {
 		}
 
 	} else if info, exists := miniActions[action]; exists {
-		if hwnd := findWindow(info.windowTitle); hwnd != 0 {
+		if hwnd := findWindow(info.WindowTitle); hwnd != 0 {
 			toggleWindow(hwnd)
 		} else {
-			launchAttached(info.path, info.alwaysOnTop, info.windowTitle)
+			launchAttached(info.Path, info.AlwaysOnTop, info.WindowTitle)
 		}
 		// show the corresponding app
 	} else {
