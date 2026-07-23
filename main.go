@@ -73,6 +73,7 @@ func main() {
 		log.Fatalf("Failed to load config: %v", err)
 	}
 	currentConfig.Store(cfg)
+	startReloadWatcher("config.json")
 
 	//make a job for all the mini-apps to attach themselves too
 	if err := initJobObject(); err != nil {
