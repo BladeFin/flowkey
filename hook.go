@@ -38,8 +38,9 @@ func keyboardHookProc(nCode int, wParam uintptr, lParam uintptr) uintptr {
 	if nCode >= 0 && listening {
 		if wParam == 0x0100 || wParam == 0x0104 { //WM_KEYDOWN or WM_SYSKEYDOWN
 			kb := (*kbdllhookstruct)(unsafe.Pointer(lParam))
+			cfg := GetConfig()
 
-			if action, ok := hotkeyActions[kb.VkCode]; ok {
+			if action, ok := cfg.HotkeyActions[kb.VkCode]; ok {
 				listening = false
 				listenGen++
 				fmt.Printf("-> matched spec key: %s\n", action)

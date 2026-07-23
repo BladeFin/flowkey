@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"sync/atomic"
 	"unicode"
 )
 
@@ -14,6 +15,14 @@ import (
 //
 //go:embed default_config.json
 var defaultConfigJSON []byte
+
+var currentConfig atomic.Pointer[Config]
+
+// returns currently active config
+// safe to call from any goroutine
+func GetConfig() *Config {
+	return currentConfig.Load()
+}
 
 type miniAppInfo struct {
 	Path        string

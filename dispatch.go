@@ -10,13 +10,14 @@ import (
 )
 
 func dispatch(action string) {
-	if path, ok := launchDetachedActions[action]; ok {
+	cfg := GetConfig()
+	if path, ok := cfg.LaunchDetachedActions[action]; ok {
 		// launch the corersponding application
 		if err := launchDetached(path); err != nil {
 			log.Printf("failed to launch %v application with error: %v", action, err)
 		}
 
-	} else if info, exists := miniActions[action]; exists {
+	} else if info, exists := cfg.MiniActions[action]; exists {
 		if hwnd := findWindow(info.WindowTitle); hwnd != 0 {
 			toggleWindow(hwnd)
 		} else {

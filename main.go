@@ -10,12 +10,6 @@ import (
 )
 
 var (
-	hotkeyActions         map[uint32]string
-	launchDetachedActions map[string]string
-	miniActions           map[string]miniAppInfo
-)
-
-var (
 	user32                  = windows.NewLazySystemDLL("user32.dll")
 	kernel32                = windows.NewLazySystemDLL("kernel32.dll")
 	procRegisterHotKey      = user32.NewProc("RegisterHotKey")
@@ -78,9 +72,7 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to load config: %v", err)
 	}
-	hotkeyActions = cfg.HotkeyActions
-	launchDetachedActions = cfg.LaunchDetachedActions
-	miniActions = cfg.MiniActions
+	currentConfig.Store(cfg)
 
 	//make a job for all the mini-apps to attach themselves too
 	if err := initJobObject(); err != nil {
