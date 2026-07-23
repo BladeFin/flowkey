@@ -1,11 +1,25 @@
 package main
 
 import (
+	_ "embed"
 	"encoding/json"
+	"errors"
 	"fmt"
+	"log"
 	"os"
 	"unicode"
 )
+
+// Note: the line below actually does stuff
+//
+//go:embed default_config.json
+var defaultConfigJSON []byte
+
+type miniAppInfo struct {
+	Path        string
+	WindowTitle string
+	AlwaysOnTop bool
+}
 
 // rawConfig mirrors the JSON file on disk exactly.
 type rawConfig struct {
@@ -27,7 +41,17 @@ type Config struct {
 func LoadConfig(path string) (*Config, error) {
 	data, err := os.ReadFile(path)
 	if err != nil {
-		return nil, fmt.Errorf("reading config file: %w", err)
+		if !errors.Is(err, os.ErrNotExist) {
+			return nil, fmt.Errorf("reading config file: %w", err)
+		}
+		//no config.json on disk, dupe default
+		log.Printf("config.json not found at %q, writing default config", path)
+		if writeErr := os.WriteFile(path, defaultConfigJSON, 0644); writeErr != nil {
+			//non-fatal, rrun off in-memory default
+			//TODO: should this be fatal?  I don't love it
+			log.Printf("warning: failed to write default config.json: %v", writeErr)
+		}
+		data = defaultConfigJSON
 	}
 
 	var raw rawConfig
