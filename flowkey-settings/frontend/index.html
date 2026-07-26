@@ -1,12 +1,278 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8"/>
-    <meta content="width=device-width, initial-scale=1.0" name="viewport"/>
-    <title>flowkey-settings</title>
-</head>
-<body>
-<div id="app"></div>
-<script src="./src/main.js" type="module"></script>
-</body>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Flowkey — Preferences</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./src/style.css" />
+    <script type="module" src="./src/main.js"></script>
+  </head>
+  <body>
+    <div id="tooltip"></div>
+
+    <div class="topbar">
+      <div class="topbar-title">
+        Flowkey Preferences <span class="unsaved-dot" id="unsaved-dot"></span>
+      </div>
+      <div class="topbar-sep"></div>
+      <input class="search" placeholder="Search…" />
+      <div class="topbar-right">
+        <div class="status-dot"></div>
+        <div class="status-text" id="status-text">daemon running · v0.3</div>
+        <button class="btn btn-save" id="save-btn">Save Preferences</button>
+      </div>
+    </div>
+
+    <div class="body-wrap">
+      <aside class="sidebar">
+        <div class="nav-item active" data-page="apps">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="1.8">
+            <rect x="3" y="7" width="18" height="12" rx="1" />
+            <path d="M7 11h.01M11 11h.01M15 11h.01M17 11h2M7 15h10" />
+          </svg>
+          Apps
+        </div>
+        <div class="nav-item" data-page="general">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.8"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          >
+            <path
+              d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"
+            />
+            <circle cx="12" cy="12" r="3" />
+          </svg>
+          General
+        </div>
+      </aside>
+
+      <main>
+        <!-- APPS -->
+        <section class="page active" id="page-apps">
+          <div class="page-header">
+            <div>
+              <div class="page-title">Apps</div>
+              <div class="page-desc">
+                Alt+Space, then a key below, triggers that app.
+              </div>
+            </div>
+          </div>
+
+          <div class="section" id="section-launch">
+            <div class="section-head">
+              <span class="twisty">▾</span>
+              <span class="section-title">Launch Apps</span>
+              <span
+                class="help-btn"
+                data-help="Regular external programs — Chrome, Notepad, anything with an .exe. Flowkey just starts them and lets go; they keep running even if Flowkey restarts."
+                >?</span
+              >
+              <span class="section-count" id="count-launch"></span>
+              <button class="btn btn-sm section-head-btn">+ Add</button>
+            </div>
+            <div class="section-body" id="body-launch"></div>
+          </div>
+
+          <div class="section" id="section-mini">
+            <div class="section-head">
+              <span class="twisty">▾</span>
+              <span class="section-title">Mini-Apps</span>
+              <span
+                class="help-btn"
+                data-help="Small companion windows built for Flowkey (like the calculator). Their lifetime is tied to the daemon, and pressing the hotkey again just shows or hides the window instead of relaunching it."
+                >?</span
+              >
+              <span class="section-count" id="count-mini"></span>
+              <button class="btn btn-sm section-head-btn">+ Add</button>
+            </div>
+            <div class="section-body" id="body-mini"></div>
+          </div>
+        </section>
+
+        <!-- GENERAL -->
+        <section class="page" id="page-general">
+          <div class="page-header">
+            <div>
+              <div class="page-title">General</div>
+              <div class="page-desc">
+                Daemon behavior and configuration file.
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label">Startup</div>
+          <div class="list">
+            <div class="row field-row">
+              <div>
+                <div class="field-label">Launch Flowkey at login</div>
+                <div class="field-desc">
+                  Starts the daemon automatically with Windows
+                </div>
+              </div>
+              <div class="toggle on" id="toggle-login" data-key="launchAtLogin">
+                <div class="toggle-label">ON</div>
+              </div>
+            </div>
+            <div class="row field-row">
+              <div>
+                <div class="field-label">Show tray icon</div>
+                <div class="field-desc">Quick access to reload and quit</div>
+              </div>
+              <div class="toggle" id="toggle-tray" data-key="trayIcon">
+                <div class="toggle-label">OFF</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-label">Configuration</div>
+          <div class="list">
+            <div
+              class="row"
+              style="
+                flex-direction: column;
+                align-items: stretch;
+                padding: 10px 4px;
+              "
+            >
+              <div class="field-label">config.json</div>
+              <div class="path-box">
+                <span>C:\Users\blade\flowkey\config.json</span>
+                <a>open folder…</a>
+              </div>
+            </div>
+            <div class="row field-row">
+              <div>
+                <div class="field-label">Reload daemon</div>
+                <div class="field-desc">
+                  Manual fallback — Save Preferences already reloads the daemon
+                  automatically after writing config.json
+                </div>
+              </div>
+              <button class="btn btn-sm" id="reload-btn">Reload now</button>
+            </div>
+          </div>
+
+          <div class="section-label">About</div>
+          <div class="list">
+            <div class="row field-row">
+              <div class="field-label">Version</div>
+              <div class="row-sub" style="margin: 0">0.3.0</div>
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <!-- Properties modal -->
+    <div class="scrim" id="scrim">
+      <div class="modal">
+        <div class="modal-head">
+          <span id="modal-title">Properties</span>
+          <div class="icon-btn" id="modal-close-btn">
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              stroke-width="2"
+              stroke-linecap="round"
+            >
+              <path d="M6 6l12 12M18 6L6 18" />
+            </svg>
+          </div>
+        </div>
+        <div class="modal-body">
+          <div class="modal-field">
+            <label
+              >Display name
+              <span
+                class="help-btn"
+                data-help="What shows up in this list. Purely cosmetic — doesn't need to match the file name."
+                >?</span
+              ></label
+            >
+            <input type="text" id="modal-name" />
+          </div>
+          <div class="modal-field">
+            <label
+              >Executable path
+              <span
+                class="help-btn"
+                data-help="The .exe Flowkey should launch, full path."
+                >?</span
+              ></label
+            >
+            <div class="path-field">
+              <input type="text" id="modal-path" />
+              <button class="btn btn-sm">Browse…</button>
+            </div>
+          </div>
+          <div class="modal-field" id="modal-window-field">
+            <label
+              >Window title
+              <span
+                class="help-btn"
+                data-help="The exact title of this app's window. Flowkey looks for this to know whether to show, hide, or launch it."
+                >?</span
+              ></label
+            >
+            <input type="text" id="modal-window" />
+          </div>
+          <div class="modal-field" id="modal-aot-field">
+            <div class="toggle-field">
+              <div class="field-label">
+                Always on top
+                <span
+                  class="help-btn"
+                  data-help="Keeps this app's window above others once it's open."
+                  >?</span
+                >
+              </div>
+              <div class="toggle" id="modal-aot-toggle">
+                <div class="toggle-label">OFF</div>
+              </div>
+            </div>
+          </div>
+          <div class="modal-field">
+            <label
+              >Hotkey
+              <span
+                class="help-btn"
+                data-help="The key you press right after Alt+Space to trigger this. Click the key to change it — every hotkey must be unique."
+                >?</span
+              ></label
+            >
+            <div class="hotkey-field">
+              <span class="field-desc" style="margin: 0"
+                >Alt+Space, then this key</span
+              >
+              <div class="keycap" id="modal-keycap">N</div>
+            </div>
+          </div>
+        </div>
+        <div class="modal-foot">
+          <button class="btn" id="modal-cancel-btn">Cancel</button>
+          <button
+            class="btn"
+            id="modal-apply-btn"
+            style="
+              background: var(--accent);
+              border-color: var(--accent);
+              color: #0f1420;
+              font-weight: 600;
+            "
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  </body>
 </html>
