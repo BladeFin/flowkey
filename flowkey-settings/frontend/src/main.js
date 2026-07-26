@@ -1,50 +1,58 @@
 // import './style.css';
 // import './app.css';
 
+import { LoadConfig, SaveConfig, TriggerReload } from "../wailsjs/go/main/App";
+
 // ---------- data model ----------
 console.log("main.js");
-const appsData = {
-  notepad: {
-    id: "notepad",
-    type: "launch",
-    title: "Notepad",
-    path: "C:\\Windows\\System32\\notepad.exe",
-    windowTitle: "",
-    hotkey: "N",
-    alwaysOnTop: false,
-  },
-  chrome: {
-    id: "chrome",
-    type: "launch",
-    title: "Chrome",
-    path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    windowTitle: "",
-    hotkey: "S",
-    alwaysOnTop: false,
-  },
-  vscode: {
-    id: "vscode",
-    type: "launch",
-    title: "VS Code",
-    path: "C:\\Users\\blade\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
-    windowTitle: "",
-    hotkey: "V",
-    alwaysOnTop: false,
-  },
-  calculator: {
-    id: "calculator",
-    type: "mini",
-    title: "Calculator",
-    path: ".\\flowkey-calc\\build\\bin\\flowkey-calc.exe",
-    windowTitle: "flowkey-calc",
-    hotkey: "C",
-    alwaysOnTop: true,
-  },
-};
+let appsData = {};
 let generalData = { launchAtLogin: true, trayIcon: false };
-
-let originalAppsData = JSON.parse(JSON.stringify(appsData));
+let originalAppsData = {};
 let originalGeneralData = JSON.parse(JSON.stringify(generalData));
+
+function configToAppsData(cfg) {
+  const out = {};
+  for (const [id, app] of Object.entries(cfg.apps || {})) {
+    out[id] = {
+      id,
+      type: app.type,
+      title: app.title,
+      path: app.path,
+      windowTitle: app.windowTitle || "",
+      hotkey: app.hotkey,
+      alwaysOnTop: !!app.alwaysOnTop,
+    };
+  }
+  return out;
+}
+
+function appsDataToConfig() {
+  const apps = {};
+  for (const [id, app] of Object.entries(appsData)) {
+    apps[id] = {
+      type: app.type,
+      title: app.title,
+      path: app.path,
+      hotkey: app.hotkey,
+      ...(app.type === "mini"
+        ? { windowTitle: app.windowTitle, alwaysOnTop: app.alwaysOnTop }
+        : {}),
+    };
+  }
+  return { apps };
+}
+
+async function init() {
+  try {
+    const raw = await LoadConfig();
+    appsData = configToAppsData(JSON.parse(raw));
+  } catch (err) {
+    console.error("failed to load config:", err);
+    appsData = {};
+  }
+  originalAppsData = JSON.parse(JSON.stringify(appsData));
+  renderApps();
+}
 
 const gearSVG = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
 <path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/>
@@ -140,7 +148,7 @@ function renderApps() {
         if (owner) {
           el.textContent = original;
           el.classList.add("conflict");
-          showTooltip(el, `${letter} is already used by ${owner.name}`, {
+          showTooltip(el, `${letter} is already used by ${owner.title}`, {
             warn: true,
             duration: 1600,
           });
@@ -175,7 +183,6 @@ function renderApps() {
   document.getElementById("count-launch").textContent = launchCount;
   document.getElementById("count-mini").textContent = miniCount;
 }
-renderApps();
 
 // ---------- nav ----------
 document.querySelectorAll(".nav-item").forEach((item) => {
@@ -212,12 +219,21 @@ function recomputeDirty() {
   return dirty;
 }
 
-document.getElementById("save-btn").addEventListener("click", () => {
+document.getElementById("save-btn").addEventListener("click", async () => {
   if (!recomputeDirty()) return;
-  originalAppsData = JSON.parse(JSON.stringify(appsData));
-  originalGeneralData = JSON.parse(JSON.stringify(generalData));
-  recomputeDirty();
-  flashStatus("config saved · reloaded");
+  try {
+    console.log("appsData.calculator:", appsData.calculator);
+    const payload = JSON.stringify(appsDataToConfig(), null, 2);
+    console.log("saving:", payload);
+    await SaveConfig(JSON.stringify(appsDataToConfig(), null, 2));
+    originalAppsData = JSON.parse(JSON.stringify(appsData));
+    originalGeneralData = JSON.parse(JSON.stringify(generalData));
+    recomputeDirty();
+    flashStatus("config saved · reloaded");
+  } catch (err) {
+    console.error("save failed:", err);
+    flashStatus("save failed — see console");
+  }
 });
 
 function flashStatus(msg) {
@@ -228,8 +244,14 @@ function flashStatus(msg) {
     el.textContent = original;
   }, 1400);
 }
-function manualReload() {
-  flashStatus("reload signal sent");
+async function manualReload() {
+  try {
+    await TriggerReload();
+    flashStatus("reload signal sent");
+  } catch (err) {
+    console.error(err);
+    flashStatus("reload failed — see console");
+  }
 }
 document.getElementById("reload-btn").addEventListener("click", manualReload);
 
@@ -302,7 +324,7 @@ modalKeycapEl.addEventListener("click", () => {
     if (owner) {
       el.textContent = original;
       el.classList.add("conflict");
-      showTooltip(el, `${letter} is already used by ${owner.name}`, {
+      showTooltip(el, `${letter} is already used by ${owner.title}`, {
         warn: true,
         duration: 1600,
       });
@@ -319,8 +341,8 @@ function openProps(id) {
   modalDraft = JSON.parse(JSON.stringify(appsData[id]));
 
   document.getElementById("modal-title").textContent =
-    "Properties — " + modalDraft.name;
-  document.getElementById("modal-name").value = modalDraft.name;
+    "Properties — " + modalDraft.title;
+  document.getElementById("modal-name").value = modalDraft.title;
   document.getElementById("modal-path").value = modalDraft.path;
   document.getElementById("modal-window").value = modalDraft.windowTitle;
   document.getElementById("modal-window-field").style.display =
@@ -339,7 +361,7 @@ function openProps(id) {
   kc.textContent = modalDraft.hotkey;
 
   document.getElementById("modal-name").oninput = (e) => {
-    modalDraft.name = e.target.value;
+    modalDraft.title = e.target.value;
   };
   document.getElementById("modal-path").oninput = (e) => {
     modalDraft.path = e.target.value;
@@ -387,3 +409,5 @@ document
 document.getElementById("scrim").addEventListener("click", (e) => {
   if (e.target.id === "scrim") closeProps();
 });
+
+init();

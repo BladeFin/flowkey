@@ -22,9 +22,9 @@
       "type": "mini",
       "title": "Calculator",
       "path": ".\\flowkey-calc\\build\\bin\\flowkey-calc.exe",
-      "windowTitle": "flowkey-calc",
       "hotkey": "C",
-      "alwaysOnTop": false
+      "windowTitle": "flowkey-calc",
+      "alwaysOnTop": true
     }
   }
 }
