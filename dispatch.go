@@ -9,23 +9,25 @@ import (
 	"golang.org/x/sys/windows"
 )
 
-func dispatch(action string) {
+func dispatch(id string) {
 	cfg := GetConfig()
-	if path, ok := cfg.LaunchDetachedActions[action]; ok {
-		// launch the corersponding application
-		if err := launchDetached(path); err != nil {
-			log.Printf("failed to launch %v application with error: %v", action, err)
-		}
+	app, ok := cfg.Apps[id]
+	if !ok {
+		log.Printf("Yikes we have the '%v' action but nothing to do with it", id)
+		return
+	}
 
-	} else if info, exists := cfg.MiniActions[action]; exists {
-		if hwnd := findWindow(info.WindowTitle); hwnd != 0 {
+	switch app.Type {
+	case "launch":
+		if err := launchDetached(app.Path); err != nil {
+			log.Printf("failed to launch %v application with error: %v", id, err)
+		}
+	case "mini":
+		if hwnd := findWindow(app.WindowTitle); hwnd != 0 {
 			toggleWindow(hwnd)
 		} else {
-			launchAttached(info.Path, info.AlwaysOnTop, info.WindowTitle)
+			launchAttached(app.Path, app.AlwaysOnTop, app.WindowTitle)
 		}
-		// show the corresponding app
-	} else {
-		log.Printf("Yikes we have the '%v' action but nothing to do with it", action)
 	}
 }
 

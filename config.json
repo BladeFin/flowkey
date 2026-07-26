@@ -1,19 +1,30 @@
 {
-  "hotkeys": {
-    "N": "notepad",
-    "C": "calculator",
-    "S": "chrome",
-    "V": "vscode"
-  },
-  "launchDetached": {
-    "chrome": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
-    "vscode": "C:\\Users\\blade\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe"
-  },
-  "miniApps": {
+  "apps": {
+    "notepad": {
+      "type": "launch",
+      "title": "Notepad",
+      "path": "C:\\Windows\\System32\\notepad.exe",
+      "hotkey": "N"
+    },
+    "chrome": {
+      "type": "launch",
+      "title": "Chrome",
+      "path": "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+      "hotkey": "S"
+    },
+    "vscode": {
+      "type": "launch",
+      "title": "VS Code",
+      "path": "C:\\Users\\blade\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
+      "hotkey": "V"
+    },
     "calculator": {
+      "type": "mini",
+      "title": "Calculator",
       "path": ".\\flowkey-calc\\build\\bin\\flowkey-calc.exe",
       "windowTitle": "flowkey-calc",
-      "alwaysOnTop": true
+      "hotkey": "C",
+      "alwaysOnTop": false
     }
   }
 }

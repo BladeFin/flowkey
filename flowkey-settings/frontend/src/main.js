@@ -6,43 +6,39 @@ console.log("main.js");
 const appsData = {
   notepad: {
     id: "notepad",
-    category: "launch",
-    name: "Notepad",
+    type: "launch",
+    title: "Notepad",
     path: "C:\\Windows\\System32\\notepad.exe",
     windowTitle: "",
     hotkey: "N",
-    isMini: false,
-    aot: false,
+    alwaysOnTop: false,
   },
   chrome: {
     id: "chrome",
-    category: "launch",
-    name: "Chrome",
+    type: "launch",
+    title: "Chrome",
     path: "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
     windowTitle: "",
     hotkey: "S",
-    isMini: false,
-    aot: false,
+    alwaysOnTop: false,
   },
   vscode: {
     id: "vscode",
-    category: "launch",
-    name: "VS Code",
+    type: "launch",
+    title: "VS Code",
     path: "C:\\Users\\blade\\AppData\\Local\\Programs\\Microsoft VS Code\\Code.exe",
     windowTitle: "",
     hotkey: "V",
-    isMini: false,
-    aot: false,
+    alwaysOnTop: false,
   },
   calculator: {
     id: "calculator",
-    category: "mini",
-    name: "Calculator",
+    type: "mini",
+    title: "Calculator",
     path: ".\\flowkey-calc\\build\\bin\\flowkey-calc.exe",
     windowTitle: "flowkey-calc",
     hotkey: "C",
-    isMini: true,
-    aot: true,
+    alwaysOnTop: true,
   },
 };
 let generalData = { launchAtLogin: true, trayIcon: false };
@@ -114,10 +110,11 @@ function renderApps() {
   Object.values(appsData).forEach((app) => {
     const row = document.createElement("div");
     row.className = "row";
-    const sub = app.isMini ? `${app.path} · "${app.windowTitle}"` : app.path;
+    const sub =
+      app.type == "mini" ? `${app.path} · "${app.windowTitle}"` : app.path;
     row.innerHTML = `
     <div class="row-main">
-        <div class="row-title">${escapeHTML(app.name)}</div>
+        <div class="row-title">${escapeHTML(app.title)}</div>
         <div class="row-sub">${escapeHTML(sub)}</div>
     </div>
     <div class="icon-btn" data-role="props">${gearSVG}</div>
@@ -156,7 +153,7 @@ function renderApps() {
       }),
     );
 
-    if (app.category === "launch") {
+    if (app.type === "launch") {
       launchBody.appendChild(row);
       launchCount++;
     } else {
@@ -327,14 +324,13 @@ function openProps(id) {
   document.getElementById("modal-path").value = modalDraft.path;
   document.getElementById("modal-window").value = modalDraft.windowTitle;
   document.getElementById("modal-window-field").style.display =
-    modalDraft.isMini ? "block" : "none";
-  document.getElementById("modal-aot-field").style.display = modalDraft.isMini
-    ? "block"
-    : "none";
+    modalDraft.type == "mini" ? "block" : "none";
+  document.getElementById("modal-aot-field").style.display =
+    modalDraft.type == "mini" ? "block" : "none";
 
   const aotToggle = document.getElementById("modal-aot-toggle");
-  aotToggle.classList.toggle("on", modalDraft.aot);
-  aotToggle.querySelector(".toggle-label").textContent = modalDraft.aot
+  aotToggle.classList.toggle("on", modalDraft.alwaysOnTop);
+  aotToggle.querySelector(".toggle-label").textContent = modalDraft.alwaysOnTop
     ? "ON"
     : "OFF";
 
@@ -381,9 +377,9 @@ document
 document
   .getElementById("modal-aot-toggle")
   .addEventListener("click", function () {
-    modalDraft.aot = !modalDraft.aot;
+    modalDraft.alwaysOnTop = !modalDraft.alwaysOnTop;
     this.classList.toggle("on");
-    this.querySelector(".toggle-label").textContent = modalDraft.aot
+    this.querySelector(".toggle-label").textContent = modalDraft.alwaysOnTop
       ? "ON"
       : "OFF";
   });

@@ -30,19 +30,30 @@ type miniAppInfo struct {
 	AlwaysOnTop bool
 }
 
-// rawConfig mirrors the JSON file on disk exactly.
-type rawConfig struct {
-	Hotkeys        map[string]string      `json:"hotkeys"`        // single letter -> action name
-	LaunchDetached map[string]string      `json:"launchDetached"` // action name -> exe path
-	MiniApps       map[string]miniAppInfo `json:"miniApps"`       // action name -> mini-app info
+type rawApp struct {
+	Type        string `json:"type"` // "launch" or "mini"
+	Title       string `json:"title"`
+	Path        string `json:"path"`
+	Hotkey      string `json:"hotkey"`
+	WindowTitle string `json:"windowTitle,omitempty"`
+	AlwaysOnTop bool   `json:"alwaysOnTop,omitempty"`
 }
 
-// Config is what the rest of the daemon (main.go, hook.go, dispatch.go)
-// actually reads from at runtime.
+type rawConfig struct {
+	Apps map[string]rawApp `json:"apps"` // id -> app
+}
+
+type AppInfo struct {
+	Type        string
+	Title       string
+	Path        string
+	WindowTitle string
+	AlwaysOnTop bool
+}
+
 type Config struct {
-	HotkeyActions         map[uint32]string
-	LaunchDetachedActions map[string]string
-	MiniActions           map[string]miniAppInfo
+	Apps          map[string]AppInfo // id -> app info
+	HotkeyActions map[uint32]string  // VK code -> app id
 }
 
 // LoadConfig reads and parses config.json at the given path into a Config
@@ -53,11 +64,9 @@ func LoadConfig(path string) (*Config, error) {
 		if !errors.Is(err, os.ErrNotExist) {
 			return nil, fmt.Errorf("reading config file: %w", err)
 		}
-		//no config.json on disk, dupe default
+		// no config.json on disk, dupe default
 		log.Printf("config.json not found at %q, writing default config", path)
 		if writeErr := os.WriteFile(path, defaultConfigJSON, 0644); writeErr != nil {
-			//non-fatal, rrun off in-memory default
-			//TODO: should this be fatal?  I don't love it
 			log.Printf("warning: failed to write default config.json: %v", writeErr)
 		}
 		data = defaultConfigJSON
@@ -68,37 +77,42 @@ func LoadConfig(path string) (*Config, error) {
 		return nil, fmt.Errorf("parsing config JSON: %w", err)
 	}
 
-	hotkeyActions, err := parseVKMap(raw.Hotkeys)
-	if err != nil {
-		return nil, fmt.Errorf("parsing hotkeys: %w", err)
+	apps := make(map[string]AppInfo, len(raw.Apps))
+	hotkeyActions := make(map[uint32]string, len(raw.Apps))
+
+	for id, a := range raw.Apps {
+		apps[id] = AppInfo{
+			Type:        a.Type,
+			Title:       a.Title,
+			Path:        a.Path,
+			WindowTitle: a.WindowTitle,
+			AlwaysOnTop: a.AlwaysOnTop,
+		}
+
+		vk, err := parseHotkeyChar(a.Hotkey)
+		if err != nil {
+			return nil, fmt.Errorf("app %q: %w", id, err)
+		}
+		if existing, taken := hotkeyActions[vk]; taken {
+			return nil, fmt.Errorf("hotkey %q used by both %q and %q", a.Hotkey, existing, id)
+		}
+		hotkeyActions[vk] = id
 	}
 
 	return &Config{
-		HotkeyActions:         hotkeyActions,
-		LaunchDetachedActions: raw.LaunchDetached, // string-keyed already, no conversion needed
-		MiniActions:           raw.MiniApps,       // string-keyed already, no conversion needed
+		Apps:          apps,
+		HotkeyActions: hotkeyActions,
 	}, nil
 }
 
-// parseVKMap converts single-letter hotkey keys (e.g. "N") into their
-// Windows VK code equivalents. For A-Z, the VK code is just the uppercase
-// ASCII value of the letter, so no lookup table is needed.
-//
-// NOTE: this only handles single letters A-Z. Function keys (F1, F2...),
-// digits, and named keys (Tab, Esc, etc.) have VK codes that are NOT
-// derivable from the character itself and will need a name->VK lookup
-// table added here later if/when the keymap grows beyond letters.
-func parseVKMap(raw map[string]string) (map[uint32]string, error) {
-	result := make(map[uint32]string, len(raw))
-	for k, v := range raw {
-		if len(k) != 1 {
-			return nil, fmt.Errorf("invalid hotkey %q: expected a single letter", k)
-		}
-		r := unicode.ToUpper(rune(k[0]))
-		if r < 'A' || r > 'Z' {
-			return nil, fmt.Errorf("invalid hotkey %q: only A-Z letters are supported right now", k)
-		}
-		result[uint32(r)] = v
+// parses one hotkey string like "N" into its VK code.
+func parseHotkeyChar(k string) (uint32, error) {
+	if len(k) != 1 {
+		return 0, fmt.Errorf("invalid hotkey %q: expected a single letter", k)
 	}
-	return result, nil
+	r := unicode.ToUpper(rune(k[0]))
+	if r < 'A' || r > 'Z' {
+		return 0, fmt.Errorf("invalid hotkey %q: only A-Z letters are supported right now", k)
+	}
+	return uint32(r), nil
 }
