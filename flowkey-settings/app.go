@@ -7,7 +7,11 @@ import (
 	"os"
 	"syscall"
 	"unsafe"
+
+	"github.com/wailsapp/wails/v2/pkg/runtime"
 )
+
+const synchronize = 0x00100000
 
 // App struct
 type App struct {
@@ -97,4 +101,34 @@ func triggerReload() error {
 		return fmt.Errorf("SetEvent failed: %w", setErr)
 	}
 	return nil
+}
+
+// opens native file picker filtered to .exe files
+// Returns "" (no error) if user cancels
+func (a *App) BrowseExecutable() (string, error) {
+	path, err := runtime.OpenFileDialog(a.ctx, runtime.OpenDialogOptions{
+		Title: "Select an executable",
+		Filters: []runtime.FileFilter{
+			{DisplayName: "Executables (*.exe)", Pattern: "*.exe"},
+		},
+	})
+	if err != nil {
+		return "", fmt.Errorf("open dialog: %w", err)
+	}
+	return path, nil
+}
+
+// checks whether daemon's reload event exists
+// only true while daemon process is alive
+func (a *App) IsDaemonRunning() bool {
+	namePtr, err := syscall.UTF16PtrFromString(reloadEventName)
+	if err != nil {
+		return false
+	}
+	h, _, _ := procOpenEventW.Call(uintptr(synchronize), 0, uintptr(unsafe.Pointer(namePtr)))
+	if h == 0 {
+		return false
+	}
+	procCloseHandle.Call(h)
+	return true
 }

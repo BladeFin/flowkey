@@ -89,6 +89,10 @@ func LoadConfig(path string) (*Config, error) {
 			AlwaysOnTop: a.AlwaysOnTop,
 		}
 
+		if a.Hotkey == "" {
+			//intentionally disabled, skip
+			continue
+		}
 		vk, err := parseHotkeyChar(a.Hotkey)
 		if err != nil {
 			return nil, fmt.Errorf("app %q: %w", id, err)

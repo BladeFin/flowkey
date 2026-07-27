@@ -1,11 +1,18 @@
 // import './style.css';
 // import './app.css';
 
-import { LoadConfig, SaveConfig, TriggerReload } from "../wailsjs/go/main/App";
+import {
+  LoadConfig,
+  SaveConfig,
+  TriggerReload,
+  BrowseExecutable,
+  IsDaemonRunning,
+} from "../wailsjs/go/main/App";
 
 // ---------- data model ----------
 console.log("main.js");
 let appsData = {};
+//TODO: Implement launchAtLogin and trayIcon
 let generalData = { launchAtLogin: true, trayIcon: false };
 let originalAppsData = {};
 let originalGeneralData = JSON.parse(JSON.stringify(generalData));
@@ -126,7 +133,10 @@ function renderApps() {
         <div class="row-sub">${escapeHTML(sub)}</div>
     </div>
     <div class="icon-btn" data-role="props">${gearSVG}</div>
-    <div class="keycap" data-role="keycap">${escapeHTML(app.hotkey)}</div>
+    <div class="hotkey-controls">
+      <div class="keycap" data-role="keycap">${escapeHTML(app.hotkey || "—")}</div>
+      <button class="icon-btn-sm" data-role="clear-hotkey" title="Remove hotkey">✕</button>
+    </div>
     `;
     row
       .querySelector('[data-role="props"]')
@@ -160,6 +170,14 @@ function renderApps() {
         recomputeDirty();
       }),
     );
+    row
+      .querySelector('[data-role="clear-hotkey"]')
+      .addEventListener("click", (e) => {
+        e.stopPropagation();
+        appsData[app.id].hotkey = "";
+        kc.textContent = "—";
+        recomputeDirty();
+      });
 
     if (app.type === "launch") {
       launchBody.appendChild(row);
@@ -169,16 +187,6 @@ function renderApps() {
       miniCount++;
     }
   });
-
-  const addLaunch = document.createElement("div");
-  addLaunch.className = "add-row";
-  addLaunch.textContent = "+ browse for an executable…";
-  launchBody.appendChild(addLaunch);
-
-  const addMini = document.createElement("div");
-  addMini.className = "add-row";
-  addMini.textContent = "+ point to a mini-app executable…";
-  miniBody.appendChild(addMini);
 
   document.getElementById("count-launch").textContent = launchCount;
   document.getElementById("count-mini").textContent = miniCount;
@@ -214,13 +222,22 @@ function recomputeDirty() {
   const dirty =
     JSON.stringify(appsData) !== JSON.stringify(originalAppsData) ||
     JSON.stringify(generalData) !== JSON.stringify(originalGeneralData);
+  document.getElementById("revert-btn").classList.toggle("dirty", dirty);
+  document.getElementById("revert-btn").disabled = !dirty;
   document.getElementById("save-btn").classList.toggle("dirty", dirty);
+  document.getElementById("save-btn").disabled = !dirty;
   document.getElementById("unsaved-dot").classList.toggle("show", dirty);
   return dirty;
 }
 
+document.getElementById("revert-btn").addEventListener("click", async () => {
+  appsData = JSON.parse(JSON.stringify(originalAppsData));
+  generalData = JSON.parse(JSON.stringify(originalGeneralData));
+  renderApps();
+  recomputeDirty();
+  flashStatus("changes reverted");
+});
 document.getElementById("save-btn").addEventListener("click", async () => {
-  if (!recomputeDirty()) return;
   try {
     console.log("appsData.calculator:", appsData.calculator);
     const payload = JSON.stringify(appsDataToConfig(), null, 2);
@@ -232,7 +249,7 @@ document.getElementById("save-btn").addEventListener("click", async () => {
     flashStatus("config saved · reloaded");
   } catch (err) {
     console.error("save failed:", err);
-    flashStatus("save failed — see console");
+    flashStatus("save failed - see console");
   }
 });
 
@@ -250,9 +267,25 @@ async function manualReload() {
     flashStatus("reload signal sent");
   } catch (err) {
     console.error(err);
-    flashStatus("reload failed — see console");
+    flashStatus("reload failed - see console");
   }
 }
+
+async function pollDaemonStatus() {
+  let running = false;
+  try {
+    running = await IsDaemonRunning();
+  } catch (err) {
+    console.error("daemon status check failed:", err);
+  }
+  document.querySelector(".status-dot").classList.toggle("offline", !running);
+  document.getElementById("status-text").textContent = running
+    ? "daemon running"
+    : "daemon not running";
+}
+pollDaemonStatus();
+setInterval(pollDaemonStatus, 3000);
+
 document.getElementById("reload-btn").addEventListener("click", manualReload);
 
 // ---------- general toggles ----------
@@ -306,6 +339,7 @@ function beginListen(keycapEl, onResolved) {
 // ---------- properties modal ----------
 let modalDraft = null;
 let modalAppId = null;
+let isNewApp = false;
 
 const modalKeycapEl = document.getElementById("modal-keycap");
 modalKeycapEl.addEventListener("click", () => {
@@ -339,9 +373,13 @@ modalKeycapEl.addEventListener("click", () => {
 function openProps(id) {
   modalAppId = id;
   modalDraft = JSON.parse(JSON.stringify(appsData[id]));
+  isNewApp = false;
+  fillModal();
+}
 
+function fillModal() {
   document.getElementById("modal-title").textContent =
-    "Properties — " + modalDraft.title;
+    (isNewApp ? "New - " : "Properties - ") + modalDraft.title;
   document.getElementById("modal-name").value = modalDraft.title;
   document.getElementById("modal-path").value = modalDraft.path;
   document.getElementById("modal-window").value = modalDraft.windowTitle;
@@ -358,7 +396,10 @@ function openProps(id) {
 
   const kc = document.getElementById("modal-keycap");
   kc.classList.remove("listening", "conflict");
-  kc.textContent = modalDraft.hotkey;
+  kc.textContent = modalDraft.hotkey || "—";
+
+  deleteBtn.style.display = isNewApp ? "none" : "inline-block";
+  resetDeleteBtn();
 
   document.getElementById("modal-name").oninput = (e) => {
     modalDraft.title = e.target.value;
@@ -377,15 +418,36 @@ function closeProps() {
   document.getElementById("scrim").classList.remove("show");
   modalDraft = null;
   modalAppId = null;
+  resetDeleteBtn();
 }
 
 function applyProps() {
   appsData[modalAppId] = modalDraft;
+  isNewApp = false;
   renderApps();
   recomputeDirty();
   closeProps();
 }
 
+document
+  .querySelector("#section-launch .section-head-btn")
+  .addEventListener("click", () => startAddApp("launch"));
+document
+  .querySelector("#section-mini .section-head-btn")
+  .addEventListener("click", () => startAddApp("mini"));
+document
+  .getElementById("modal-browse-btn")
+  .addEventListener("click", async () => {
+    try {
+      const path = await BrowseExecutable();
+      if (!path) return;
+      modalDraft.path = path;
+      document.getElementById("modal-path").value = path;
+    } catch (err) {
+      console.error("browse failed:", err);
+      flashStatus("browse failed - see console");
+    }
+  });
 document
   .getElementById("modal-close-btn")
   .addEventListener("click", closeProps);
@@ -406,8 +468,87 @@ document
       : "OFF";
   });
 
+document.addEventListener("keydown", (e) => {
+  if (e.key !== "Escape") return;
+  if (!document.getElementById("scrim").classList.contains("show")) return;
+  if (modalKeycapEl.classList.contains("listening")) return; //see beginListen
+  closeProps();
+});
+
+document.getElementById("modal-hotkey-clear").addEventListener("click", () => {
+  modalDraft.hotkey = "";
+  const kc = document.getElementById("modal-keycap");
+  kc.classList.remove("listening", "conflict");
+  kc.textContent = "—";
+});
+
 document.getElementById("scrim").addEventListener("click", (e) => {
   if (e.target.id === "scrim") closeProps();
+});
+
+async function startAddApp(type) {
+  let path;
+  try {
+    path = await BrowseExecutable();
+  } catch (err) {
+    console.error("browse failed:", err);
+    flashStatus("browse failed - see console");
+    return;
+  }
+  if (!path) return; //user cancelled the dialog
+
+  const base = path
+    .split(/[\\/]/)
+    .pop()
+    .replace(/\.exe$/i, "");
+  let id =
+    base
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "") || "app";
+  let candidate = id,
+    n = 1;
+  while (appsData[candidate]) candidate = `${id}-${n++}`;
+  id = candidate;
+
+  modalAppId = id;
+  modalDraft = {
+    id,
+    type,
+    title: base,
+    path,
+    windowTitle: "",
+    hotkey: "",
+    alwaysOnTop: false,
+  };
+  isNewApp = true;
+  fillModal();
+}
+
+const deleteBtn = document.getElementById("modal-delete-btn");
+let deleteArmed = false;
+let deleteArmTimer = null;
+
+function resetDeleteBtn() {
+  deleteArmed = false;
+  deleteBtn.textContent = "Remove App";
+  deleteBtn.classList.remove("confirm");
+  clearTimeout(deleteArmTimer);
+}
+
+deleteBtn.addEventListener("click", () => {
+  if (!deleteArmed) {
+    deleteArmed = true;
+    deleteBtn.textContent = "Confirm Remove";
+    deleteBtn.classList.add("confirm");
+    deleteArmTimer = setTimeout(resetDeleteBtn, 2500);
+    return;
+  }
+  delete appsData[modalAppId];
+  resetDeleteBtn();
+  renderApps();
+  recomputeDirty();
+  closeProps();
 });
 
 init();

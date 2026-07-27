@@ -23,6 +23,7 @@
       <div class="topbar-right">
         <div class="status-dot"></div>
         <div class="status-text" id="status-text">daemon running · v0.3</div>
+        <button class="btn btn-revert" id="revert-btn">Revert Changes</button>
         <button class="btn btn-save" id="save-btn">Save Preferences</button>
       </div>
     </div>
@@ -211,7 +212,7 @@
             >
             <div class="path-field">
               <input type="text" id="modal-path" />
-              <button class="btn btn-sm">Browse…</button>
+              <button class="btn btn-sm" id="modal-browse-btn">Browse…</button>
             </div>
           </div>
           <div class="modal-field" id="modal-window-field">
@@ -253,11 +254,24 @@
               <span class="field-desc" style="margin: 0"
                 >Alt+Space, then this key</span
               >
-              <div class="keycap" id="modal-keycap">N</div>
+              <div class="hotkey-controls">
+                <div class="keycap" id="modal-keycap">N</div>
+                <button
+                  class="icon-btn-sm"
+                  id="modal-hotkey-clear"
+                  title="Remove hotkey"
+                >
+                  ✕
+                </button>
+              </div>
             </div>
           </div>
         </div>
         <div class="modal-foot">
+          <button class="btn btn-danger" id="modal-delete-btn">
+            Remove App
+          </button>
+          <div style="flex: 1"></div>
           <button class="btn" id="modal-cancel-btn">Cancel</button>
           <button
             class="btn"
