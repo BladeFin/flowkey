@@ -7,6 +7,8 @@ import {
   TriggerReload,
   BrowseExecutable,
   IsDaemonRunning,
+  GetLaunchAtLogin,
+  SetLaunchAtLogin,
 } from "../wailsjs/go/main/App";
 
 // ---------- data model ----------
@@ -289,17 +291,45 @@ setInterval(pollDaemonStatus, 3000);
 document.getElementById("reload-btn").addEventListener("click", manualReload);
 
 // ---------- general toggles ----------
-function toggleGeneral(key, el) {
-  generalData[key] = !generalData[key];
-  el.classList.toggle("on", generalData[key]);
-  el.querySelector(".toggle-label").textContent = generalData[key]
-    ? "ON"
-    : "OFF";
-  recomputeDirty();
+const loginToggle = document.getElementById("toggle-login");
+
+async function initLaunchAtLoginToggle() {
+  try {
+    const enabled = await GetLaunchAtLogin();
+    setToggleState(loginToggle, enabled);
+  } catch (err) {
+    console.error("failed to read launch-at-login state:", err);
+    loginToggle.classList.add("disabled");
+  }
 }
-document.querySelectorAll("#page-general .toggle[data-key]").forEach((t) => {
-  t.addEventListener("click", () => toggleGeneral(t.dataset.key, t));
+
+function setToggleState(el, on) {
+  el.classList.toggle("on", on);
+  el.querySelector(".toggle-label").textContent = on ? "ON" : "OFF";
+}
+
+loginToggle.addEventListener("click", async () => {
+  if (
+    loginToggle.classList.contains("disabled") ||
+    loginToggle.classList.contains("pending")
+  ) {
+    return;
+  }
+
+  const next = !loginToggle.classList.contains("on");
+  loginToggle.classList.add("pending");
+
+  try {
+    await SetLaunchAtLogin(next);
+    setToggleState(loginToggle, next);
+  } catch (err) {
+    console.error("failed to set launch-at-login: ", err);
+  } finally {
+    loginToggle.classList.remove("pending");
+  }
 });
+
+initLaunchAtLoginToggle();
 
 // ---------- shared keycap listen: captures a key, or cancels on click-away ----------
 function beginListen(keycapEl, onResolved) {

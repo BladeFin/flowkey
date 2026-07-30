@@ -26,5 +26,9 @@
       "windowTitle": "flowkey-calc",
       "alwaysOnTop": true
     }
+  },
+  "general": {
+    "daemonPath": "C:\\Users\\blade\\Documents\\Flowkey\\flowkey.exe",
+    "trayIcon": false
   }
 }

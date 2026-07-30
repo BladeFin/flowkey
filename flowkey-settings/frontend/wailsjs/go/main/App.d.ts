@@ -3,10 +3,14 @@
 
 export function BrowseExecutable():Promise<string>;
 
+export function GetLaunchAtLogin():Promise<boolean>;
+
 export function IsDaemonRunning():Promise<boolean>;
 
 export function LoadConfig():Promise<string>;
 
 export function SaveConfig(arg1:string):Promise<void>;
+
+export function SetLaunchAtLogin(arg1:boolean):Promise<void>;
 
 export function TriggerReload():Promise<void>;

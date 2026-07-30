@@ -6,6 +6,10 @@ export function BrowseExecutable() {
   return window['go']['main']['App']['BrowseExecutable']();
 }
 
+export function GetLaunchAtLogin() {
+  return window['go']['main']['App']['GetLaunchAtLogin']();
+}
+
 export function IsDaemonRunning() {
   return window['go']['main']['App']['IsDaemonRunning']();
 }
@@ -16,6 +20,10 @@ export function LoadConfig() {
 
 export function SaveConfig(arg1) {
   return window['go']['main']['App']['SaveConfig'](arg1);
+}
+
+export function SetLaunchAtLogin(arg1) {
+  return window['go']['main']['App']['SetLaunchAtLogin'](arg1);
 }
 
 export function TriggerReload() {

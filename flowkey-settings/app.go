@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"path/filepath"
 	"syscall"
 	"unsafe"
 
 	"github.com/wailsapp/wails/v2/pkg/runtime"
+	"golang.org/x/sys/windows/registry"
 )
 
 const synchronize = 0x00100000
@@ -16,6 +18,18 @@ const synchronize = 0x00100000
 // App struct
 type App struct {
 	ctx context.Context
+}
+
+const (
+	runKeyPath   = `Software\Microsoft\Windows\CurrentVersion\Run`
+	runValueName = "Flowkey"
+)
+
+// mirrors the piece of config.json we need
+type generalConfig struct {
+	General struct {
+		DaemonPath string `json:"daemonPath"`
+	} `json:"general"`
 }
 
 func NewApp() *App {
@@ -131,4 +145,68 @@ func (a *App) IsDaemonRunning() bool {
 	}
 	procCloseHandle.Call(h)
 	return true
+}
+
+// reads config.json, extracts genereal.daemonPath, resolves to absolute path
+func resolveDaemonPath() (string, error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", fmt.Errorf("reading config: %w", err)
+	}
+	var cfg generalConfig
+	if err := json.Unmarshal(data, &cfg); err != nil {
+		return "", fmt.Errorf("parsing config: %w", err)
+	}
+	if cfg.General.DaemonPath == "" {
+		return "", fmt.Errorf("general.daemonPath not set in config")
+	}
+	if !filepath.IsAbs(cfg.General.DaemonPath) {
+		return "", fmt.Errorf("general.daemonPath is not absolute: %q", cfg.General.DaemonPath)
+	}
+	return cfg.General.DaemonPath, nil
+}
+
+// returns whether Run key currently has Flowkey entry
+func (a *App) GetLaunchAtLogin() (bool, error) {
+	key, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE)
+	if err != nil {
+		return false, fmt.Errorf("opening Run key: %w", err)
+	}
+	defer key.Close()
+
+	_, _, err = key.GetStringValue(runValueName)
+	if err == registry.ErrNotExist {
+		return false, nil
+	}
+	if err != nil {
+		return false, fmt.Errorf("reading Run value: %w", err)
+	}
+	return true, nil
+}
+
+// enable/disable launch at login
+func (a *App) SetLaunchAtLogin(enable bool) error {
+	key, err := registry.OpenKey(registry.CURRENT_USER, runKeyPath, registry.QUERY_VALUE|registry.SET_VALUE)
+	if err != nil {
+		return fmt.Errorf("opening Run key: %w", err)
+	}
+	defer key.Close()
+
+	if !enable {
+		err := key.DeleteValue(runValueName)
+		if err != nil && err != registry.ErrNotExist {
+			return fmt.Errorf("removing Run value: %w", err)
+		}
+		return nil
+	}
+	daemonPath, err := resolveDaemonPath()
+	if err != nil {
+		return fmt.Errorf("cannot enable launch at login: %w", err)
+	}
+
+	quoted := fmt.Sprintf("%q", daemonPath)
+	if err := key.SetStringValue(runValueName, quoted); err != nil {
+		return fmt.Errorf("writing Run value: %w", err)
+	}
+	return nil
 }
