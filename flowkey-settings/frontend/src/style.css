@@ -569,6 +569,20 @@ main {
 .toggle.on .toggle-label {
   color: #0f1420;
 }
+.toggle.pending {
+  opacity: 0.7;
+  cursor: wait;
+}
+.toggle.pending .toggle-label {
+  opacity: 0.6;
+}
+.toggle.disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+.toggle.disabled:hover {
+  border-color: var(--border-light);
+}
 
 /* ---------- Modal ---------- */
 .scrim {
