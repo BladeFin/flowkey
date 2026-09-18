@@ -196,9 +196,12 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 		switch id {
 		case MENU_RELOAD:
 			//reload
-			if err := triggerReload(); err != nil {
+			cfg, err := LoadConfig("config.json")
+			if err != nil {
 				log.Printf("reload failed: %v", err)
+				return 0
 			}
+			currentConfig.Store(cfg)
 		case MENU_RESTART:
 			//restart
 			r, _, err := procPostThreadMessageW.Call(
