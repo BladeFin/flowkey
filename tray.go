@@ -197,7 +197,7 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 				log.Printf("reload failed: %v", err)
 			}
 		case MENU_RESTART:
-			//TODO: restart
+			//restart
 			exe, err := os.Executable()
 			if err != nil {
 				log.Printf("restart failed: %v", err)
