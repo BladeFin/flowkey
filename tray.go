@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"log"
+	"os"
 	"runtime"
 	"unsafe"
 
@@ -193,6 +194,9 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 			//TODO: open settings
 		case MENU_EXIT:
 			//exit
+			// removeTrayIcon()
+			// procPostQuitMessage.Call(0)
+			os.Exit(0) //works with job handling for now
 		}
 
 		return 0
@@ -329,5 +333,18 @@ func appendMenu(menu uintptr, id uintptr, text string) {
 		MF_STRING,
 		id,
 		uintptr(unsafe.Pointer(str)),
+	)
+}
+
+func removeTrayIcon() {
+	nid := notifyIconDataW{
+		CbSize: uint32(unsafe.Sizeof(notifyIconDataW{})),
+		HWnd:   trayHwnd,
+		UID:    1,
+	}
+
+	procShellNotifyIconW.Call(
+		NIM_DELETE,
+		uintptr(unsafe.Pointer(&nid)),
 	)
 }
