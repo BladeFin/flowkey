@@ -213,7 +213,7 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 			removeTrayIcon()
 			os.Exit(0)
 		case MENU_SETTINGS:
-			//TODO: open settings
+			//TODO: launch settings app
 		case MENU_EXIT:
 			//exit
 			// removeTrayIcon()
