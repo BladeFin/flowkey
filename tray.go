@@ -43,6 +43,9 @@ var (
 	//reload logic
 	procOpenEventW = kernel32.NewProc("OpenEventW")
 	procSetEvent   = kernel32.NewProc("SetEvent")
+
+	//restart logic
+	procPostThreadMessageW = user32.NewProc("PostThreadMessageW")
 )
 
 const IDI_APPLICATION = 32512 //default application icon
@@ -198,6 +201,21 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 			}
 		case MENU_RESTART:
 			//restart
+			r, _, err := procPostThreadMessageW.Call(
+				uintptr(hotkeyThreadID),
+				WM_UNREGISTER_HOTKEYS, //tell original thread to unregister hotkeys
+				0,
+				0,
+			)
+
+			if r == 0 {
+				log.Printf("failed to tell hotkey thread to shut down: %v", err)
+				return 0
+			}
+
+			<-hotkeysStopped //original thread says "yes, I unregistered them"
+			removeTrayIcon() //explicitly remove tray to avoid race condition
+
 			exe, err := os.Executable()
 			if err != nil {
 				log.Printf("restart failed: %v", err)
@@ -205,12 +223,12 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 			}
 
 			cmd := exec.Command(exe)
+
 			if err := cmd.Start(); err != nil {
 				log.Printf("restart failed: %v", err)
 				return 0
 			}
 
-			removeTrayIcon()
 			os.Exit(0)
 		case MENU_SETTINGS:
 			//TODO: launch settings app

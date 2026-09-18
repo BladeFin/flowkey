@@ -22,6 +22,7 @@ var (
 	procIsWindowVisible     = user32.NewProc("IsWindowVisible")
 	procSetForegroundWindow = user32.NewProc("SetForegroundWindow")
 	procSetWindowPos        = user32.NewProc("SetWindowPos")
+	procUnregisterHotKey    = user32.NewProc("UnregisterHotKey")
 )
 
 type msg struct {
@@ -33,7 +34,13 @@ type msg struct {
 	Pt      struct{ X, Y int32 }
 }
 
+const WM_UNREGISTER_HOTKEYS = WM_USER + 2
+const WM_HOTKEY = 0x0312 //defined by windows
+
 var jobObject windows.Handle
+
+var hotkeyThreadID uint32
+var hotkeysStopped = make(chan struct{})
 
 // Creates windows job object configured to kill all assigned processes when this handle is closed
 // includes daemon crash
@@ -66,6 +73,8 @@ func initJobObject() error {
 
 func main() {
 	runtime.LockOSThread() //prevents thread switching that would break the hotkey registration
+
+	hotkeyThreadID = windows.GetCurrentThreadId() //for sending cross-thread messages
 
 	//load config or default config
 	cfg, err := LoadConfig("config.json")
@@ -110,9 +119,13 @@ func main() {
 			0,
 			0,
 		)
-		if m.Message == 0x0312 && m.WParam == 1 { //WM_HOTKEY, our id
+
+		if m.Message == WM_HOTKEY && m.WParam == 1 { //WM_HOTKEY, our id
 			fmt.Println("activation pressed! listening for spec key...")
 			startListening()
+		} else if m.Message == WM_UNREGISTER_HOTKEYS { //WM_FLOWKEY_RESTART custom message
+			procUnregisterHotKey.Call(0, 1) //hwnd, id
+			close(hotkeysStopped)           //send confirmation to tray thread
 		}
 	}
 }
