@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"log"
 	"os"
+	"os/exec"
 	"runtime"
 	"unsafe"
 
@@ -197,6 +198,20 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 			}
 		case MENU_RESTART:
 			//TODO: restart
+			exe, err := os.Executable()
+			if err != nil {
+				log.Printf("restart failed: %v", err)
+				return 0
+			}
+
+			cmd := exec.Command(exe)
+			if err := cmd.Start(); err != nil {
+				log.Printf("restart failed: %v", err)
+				return 0
+			}
+
+			removeTrayIcon()
+			os.Exit(0)
 		case MENU_SETTINGS:
 			//TODO: open settings
 		case MENU_EXIT:
