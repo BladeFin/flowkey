@@ -74,6 +74,7 @@ func main() {
 	}
 	currentConfig.Store(cfg)
 	startReloadWatcher("config.json")
+	go startTray()
 
 	//make a job for all the mini-apps to attach themselves too
 	if err := initJobObject(); err != nil {
