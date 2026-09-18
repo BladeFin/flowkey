@@ -38,6 +38,10 @@ var (
 	procDestroyMenu     = user32.NewProc("DestroyMenu")
 	procGetCursorPos    = user32.NewProc("GetCursorPos")
 	//procSetForegroundWindow already defined
+
+	//reload logic
+	procOpenEventW = kernel32.NewProc("OpenEventW")
+	procSetEvent   = kernel32.NewProc("SetEvent")
 )
 
 const IDI_APPLICATION = 32512 //default application icon
@@ -187,7 +191,10 @@ func windowProc(hwnd windows.HWND, msg uint32, wParam, lParam uintptr) uintptr {
 		id := wParam & 0xFFFF
 		switch id {
 		case MENU_RELOAD:
-			//TODO: reload
+			//reload
+			if err := triggerReload(); err != nil {
+				log.Printf("reload failed: %v", err)
+			}
 		case MENU_RESTART:
 			//TODO: restart
 		case MENU_SETTINGS:
@@ -347,4 +354,27 @@ func removeTrayIcon() {
 		NIM_DELETE,
 		uintptr(unsafe.Pointer(&nid)),
 	)
+}
+
+func triggerReload() error {
+	namePtr, err := windows.UTF16PtrFromString(reloadEventName)
+	if err != nil {
+		return err
+	}
+	h, _, callErr := procOpenEventW.Call(
+		uintptr(windows.EVENT_MODIFY_STATE),
+		0,
+		uintptr(unsafe.Pointer(namePtr)),
+	)
+	if h == 0 {
+		// Daemon likely isn't running — not fatal, config was still saved.
+		return fmt.Errorf("could not open reload event (daemon not running?): %w", callErr)
+	}
+	defer windows.CloseHandle(windows.Handle(h))
+
+	ok, _, setErr := procSetEvent.Call(h)
+	if ok == 0 {
+		return fmt.Errorf("SetEvent failed: %w", setErr)
+	}
+	return nil
 }
